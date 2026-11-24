@@ -72,3 +72,6 @@ tools/
 !reports/vidar.exe.pack/
 !reports/vidar.exe.pack/**
 reports/vidar.exe.pack.zip
+
+# Session/triage scratch (threatswarm evidence logs, etc.)
+evidence/
