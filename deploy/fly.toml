@@ -1,0 +1,54 @@
+# Fly.io deployment for the FlatScan hosted web GUI.
+#
+# This runs the same single container as deploy/docker-compose.yml: flatscan
+# --web on loopback with Caddy in front (TLS + Basic Auth + Host/Origin rewrite).
+# Fly passes raw TCP through on 80/443 so Caddy terminates TLS itself and can
+# obtain a Let's Encrypt cert for your custom domain.
+#
+# Setup (see deploy/README.md for the full version):
+#   1. Edit `app` below to a unique name, and `primary_region`.
+#   2. fly launch --no-deploy --copy-config --dockerfile deploy/Dockerfile
+#   3. fly secrets set \
+#        FLATSCAN_DOMAIN=scan.example.com \
+#        FLATSCAN_USER=analyst \
+#        FLATSCAN_PASSWORD_HASH='<output of: fly ssh console -C "caddy hash-password --plaintext PASS"
+#                                 or: docker run --rm caddy:2-alpine caddy hash-password --plaintext PASS>'
+#   4. fly ips allocate-v4 && fly ips allocate-v6
+#   5. Point scan.example.com DNS at those IPs.
+#   6. fly deploy
+#
+# Caddy needs 80 + 443 reachable to issue the cert, which the passthrough below
+# provides. Do not add Fly's own TLS handler — Caddy owns TLS here.
+
+app = "flatscan-web"          # change me: must be unique on Fly
+primary_region = "sin"        # change me: sin, iad, lhr, fra, syd, ...
+
+[build]
+  dockerfile = "deploy/Dockerfile"   # build context is the repo root
+
+[env]
+  FLATSCAN_PORT = "5000"
+
+# Raw TCP passthrough on 443 — Caddy terminates TLS inside the container.
+[[services]]
+  internal_port = 443
+  protocol = "tcp"
+  auto_stop_machines = "off"   # long scans + a live analyzer: don't suspend
+  auto_start_machines = true
+  min_machines_running = 1
+  [[services.ports]]
+    port = 443
+    handlers = []
+
+# Port 80 passthrough so Caddy can complete the ACME HTTP challenge and
+# redirect http -> https.
+[[services]]
+  internal_port = 80
+  protocol = "tcp"
+  [[services.ports]]
+    port = 80
+    handlers = []
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "1gb"            # bump to 2gb for deep scans of large samples
