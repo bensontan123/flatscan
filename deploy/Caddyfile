@@ -1,0 +1,35 @@
+# Public edge for the FlatScan web GUI.
+#
+# FlatScan is unauthenticated and loopback-only by design, so this proxy adds
+# the two things that make public hosting safe: TLS + Basic Auth. It then
+# rewrites Host/Origin to localhost so FlatScan's anti-rebinding/CSRF guard
+# accepts the forwarded request.
+
+{$FLATSCAN_DOMAIN} {
+	# Mandatory authentication — do NOT remove. Without it, anyone on the
+	# internet could upload samples to and read results from your analyzer.
+	basic_auth {
+		{$FLATSCAN_USER} {$FLATSCAN_PASSWORD_HASH}
+	}
+
+	# Uploads can be up to 256 MB (flatscan's maxUploadBytes).
+	request_body {
+		max_size 300MB
+	}
+
+	reverse_proxy 127.0.0.1:{$FLATSCAN_PORT:5000} {
+		# FlatScan requires the loopback Host and (if present) a matching
+		# localhost Origin. Rewrite both; the public domain never reaches it.
+		header_up Host localhost:{$FLATSCAN_PORT:5000}
+		header_up Origin http://localhost:{$FLATSCAN_PORT:5000}
+		# Long scans: don't cut the response off early.
+		transport http {
+			read_timeout 10m
+			write_timeout 10m
+		}
+	}
+
+	# Caddy auto-provisions a Let's Encrypt certificate for $FLATSCAN_DOMAIN
+	# once the domain's DNS points at this host and ports 80/443 are reachable.
+	encode gzip
+}
