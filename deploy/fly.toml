@@ -9,7 +9,7 @@
 #   1. Edit `app` below to a unique name, and `primary_region`.
 #   2. fly launch --no-deploy --copy-config --dockerfile deploy/Dockerfile
 #   3. fly secrets set \
-#        FLATSCAN_DOMAIN=scan.example.com \
+#        FLATSCAN_SITE=scan.example.com \
 #        FLATSCAN_USER=analyst \
 #        FLATSCAN_PASSWORD_HASH='<output of: fly ssh console -C "caddy hash-password --plaintext PASS"
 #                                 or: docker run --rm caddy:2-alpine caddy hash-password --plaintext PASS>'

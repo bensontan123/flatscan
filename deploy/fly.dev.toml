@@ -1,0 +1,35 @@
+# FlatScan on Fly.io using the FREE *.fly.dev hostname (no custom domain).
+#
+# Fly's edge terminates TLS for <app>.fly.dev, so Caddy inside the container
+# just serves plain HTTP on :80 (FLATSCAN_SITE defaults to ":80"), still doing
+# Basic Auth + the Host/Origin rewrite to flatscan on loopback.
+#
+# Deploy:
+#   fly launch --no-deploy --copy-config --config deploy/fly.dev.toml --dockerfile deploy/Dockerfile
+#   fly secrets set \
+#       FLATSCAN_USER=analyst \
+#       FLATSCAN_PASSWORD_HASH='<docker run --rm caddy:2-alpine caddy hash-password --plaintext PASS>'
+#   fly deploy --config deploy/fly.dev.toml
+#   # → https://<app>.fly.dev  (browser prompts for the user/password)
+
+app = "flatscan-web"          # change me: becomes <app>.fly.dev, must be unique on Fly
+primary_region = "sin"        # change me: sin, iad, lhr, fra, syd, ...
+
+[build]
+  dockerfile = "deploy/Dockerfile"   # build context is the repo root
+
+[env]
+  FLATSCAN_PORT = "5000"
+  FLATSCAN_SITE = ":80"              # Caddy serves HTTP; Fly terminates TLS for *.fly.dev
+
+# Fly's public HTTPS edge → container port 80 (Caddy).
+[http_service]
+  internal_port = 80
+  force_https = true                 # redirect http→https at Fly's edge
+  auto_stop_machines = "off"         # long scans + a live analyzer: don't suspend
+  auto_start_machines = true
+  min_machines_running = 1
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "1gb"                     # bump to 2gb for deep scans of large samples

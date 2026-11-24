@@ -41,7 +41,7 @@ docker run --rm caddy:2-alpine caddy hash-password --plaintext 'a-strong-passwor
 
 # 3. Create deploy/.env
 cat > deploy/.env <<'ENV'
-FLATSCAN_DOMAIN=scan.example.com
+FLATSCAN_SITE=scan.example.com
 FLATSCAN_USER=analyst
 FLATSCAN_PASSWORD_HASH=$2a$14$REPLACE_WITH_THE_HASH_FROM_STEP_2
 ENV
@@ -52,10 +52,32 @@ docker compose --env-file deploy/.env -f deploy/docker-compose.yml up -d --build
 # 5. Open https://scan.example.com  (browser will prompt for the user/password)
 ```
 
-On Fly.io / Railway / Render, point the platform at `deploy/Dockerfile` (build
-context = repo root), set `FLATSCAN_DOMAIN`, `FLATSCAN_USER`,
-`FLATSCAN_PASSWORD_HASH` as env vars, and expose port 443 (Fly) or let the
-platform's own TLS terminate and proxy to container port 80.
+`FLATSCAN_SITE` is the Caddy listen address: a hostname (e.g.
+`scan.example.com`) serves auto-HTTPS on :443; `:80` serves plain HTTP for a
+platform that terminates TLS itself. `FLATSCAN_PORT` defaults to 5000.
+
+## Deploy on Fly.io
+
+**Free `*.fly.dev` hostname (no custom domain)** — use `deploy/fly.dev.toml`.
+Fly's edge terminates TLS, so Caddy serves HTTP on :80 (`FLATSCAN_SITE=:80`,
+already set in that config):
+
+```bash
+# fly CLI installed and logged in (fly auth login)
+fly launch --no-deploy --copy-config --config deploy/fly.dev.toml --dockerfile deploy/Dockerfile
+fly secrets set FLATSCAN_USER=analyst \
+  FLATSCAN_PASSWORD_HASH="$(docker run --rm caddy:2-alpine caddy hash-password --plaintext 'a-strong-password')"
+fly deploy --config deploy/fly.dev.toml
+# → https://<app>.fly.dev
+```
+
+**Custom domain** — use `deploy/fly.toml` instead (Fly passes TCP through, Caddy
+gets the cert). Set `FLATSCAN_SITE=your.domain` plus the user/hash as secrets,
+allocate IPs, point DNS, then `fly deploy`. See the comments in that file.
+
+On Railway / Render, point the platform at `deploy/Dockerfile` (build context =
+repo root), set `FLATSCAN_USER`, `FLATSCAN_PASSWORD_HASH`, and `FLATSCAN_SITE=:80`,
+and let the platform's own TLS terminate and proxy to container port 80.
 
 ## Security notes — read before exposing this
 
