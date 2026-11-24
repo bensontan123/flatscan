@@ -1,6 +1,7 @@
 # FlatScan hosted web GUI (TLS + Basic Auth in front of the loopback analyzer).
 #
-# 1. Point FLATSCAN_DOMAIN's DNS A/AAAA record at this host.
+# 1. Point FLATSCAN_SITE's DNS A/AAAA record at this host (FLATSCAN_SITE is your
+#    domain, e.g. scan.example.com, which Caddy serves over auto-HTTPS).
 # 2. Generate a password hash:  docker run --rm caddy:2-alpine caddy hash-password --plaintext 'your-strong-password'
 # 3. Put the values in a .env file next to this one (see deploy/README.md), then:
 #      docker compose -f deploy/docker-compose.yml up -d --build
@@ -13,7 +14,7 @@ services:
       context: ..
       dockerfile: deploy/Dockerfile
     environment:
-      FLATSCAN_DOMAIN: ${FLATSCAN_DOMAIN:?set FLATSCAN_DOMAIN in .env}
+      FLATSCAN_SITE: ${FLATSCAN_SITE:?set FLATSCAN_SITE in .env (your domain, e.g. scan.example.com)}
       FLATSCAN_USER: ${FLATSCAN_USER:?set FLATSCAN_USER in .env}
       FLATSCAN_PASSWORD_HASH: ${FLATSCAN_PASSWORD_HASH:?run caddy hash-password and set FLATSCAN_PASSWORD_HASH in .env}
       FLATSCAN_PORT: "5000"

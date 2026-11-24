@@ -4,8 +4,15 @@
 # the two things that make public hosting safe: TLS + Basic Auth. It then
 # rewrites Host/Origin to localhost so FlatScan's anti-rebinding/CSRF guard
 # accepts the forwarded request.
+#
+# FLATSCAN_SITE picks the listen address / TLS behaviour:
+#   - ":80"              (default) serve plain HTTP on :80, no cert. Use this
+#                        behind a platform that terminates TLS for you — e.g.
+#                        Fly.io's *.fly.dev edge (see deploy/fly.dev.toml).
+#   - "scan.example.com" serve HTTPS on :443 with an auto Let's Encrypt cert for
+#                        that domain (ports 80+443 must be reachable).
 
-{$FLATSCAN_DOMAIN} {
+{$FLATSCAN_SITE::80} {
 	# Mandatory authentication — do NOT remove. Without it, anyone on the
 	# internet could upload samples to and read results from your analyzer.
 	basic_auth {
@@ -19,7 +26,7 @@
 
 	reverse_proxy 127.0.0.1:{$FLATSCAN_PORT:5000} {
 		# FlatScan requires the loopback Host and (if present) a matching
-		# localhost Origin. Rewrite both; the public domain never reaches it.
+		# localhost Origin. Rewrite both; the public edge never reaches it.
 		header_up Host localhost:{$FLATSCAN_PORT:5000}
 		header_up Origin http://localhost:{$FLATSCAN_PORT:5000}
 		# Long scans: don't cut the response off early.
@@ -29,7 +36,5 @@
 		}
 	}
 
-	# Caddy auto-provisions a Let's Encrypt certificate for $FLATSCAN_DOMAIN
-	# once the domain's DNS points at this host and ports 80/443 are reachable.
 	encode gzip
 }
